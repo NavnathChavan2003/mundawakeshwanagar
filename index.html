@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Signal Control Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <style>
+    body {
+      background: url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRo39ApKDKfEG37Oq3p1Y-xEW5kIKv2p5akHQ&s') no-repeat center center fixed;
+      background-size: cover;
+      color: #fff;
+      font-family: Arial, sans-serif;
+    }
+    .overlay { background-color: rgba(0, 0, 0, 0.65); min-height: 100vh; padding-top: 20px; }
+    .logo { height: 50px; margin-right: 15px; }
+    .card { margin-bottom: 30px; background-color: rgba(255,255,255,0.95); color: #000; border: none; border-radius: 10px; box-shadow: 0 0 15px rgba(0,0,0,0.3); }
+    .card-header { font-size: 1.25rem; font-weight: bold; }
+    .btn-green { background-color: green !important; }
+    .btn-red   { background-color: red   !important; }
+    .btn-yellow{ background-color: yellow!important; color: black!important; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    @media (min-width:992px){ .btn { max-width:220px; margin:0 auto; display:block; } }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <div class="container py-3">
+      <div class="d-flex align-items-center mb-4 justify-content-center">
+        <img src="ntpl.jpg" style="height: 100px; width: 50px;" class="logo" alt="Company Logo" />
+        <h2 class="mb-0 text-white">NUCLEONICS TRAFFIC SOLUTIONS PVT. LTD.</h2>
+      </div>
+
+      <div class="card">
+        <div class="card-header bg-primary text-white text-center">Signal Receiver</div>
+        <div class="card-body row text-center g-2">
+          <div class="col-6">
+            <button id="signalToggleBtn" class="btn btn-success w-100">Signal Mode ON</button>
+          </div>
+          <div class="col-6">
+            <button id="modeToggleBtn" class="btn btn-success w-100">Auto Mode ON</button>
+          </div>
+          <div class="col-6">
+            <button id="greenExtendBtn" class="btn btn-red w-100">Green Extend</button>
+          </div>
+          <div class="col-6">
+            <button id="greenTerminalBtn" class="btn btn-red w-100">Green Terminate</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const AUTH_TOKEN = "PCmZ_HlOc1w4z5jOnx4aJTQ2sYfCrmFZ";
+    const BASE_URL = `https://blynk.cloud/external/api/update?token=${AUTH_TOKEN}&`;
+
+    const signalBtn = document.getElementById('signalToggleBtn');
+    const modeBtn = document.getElementById('modeToggleBtn');
+    const greenExtendBtn = document.getElementById('greenExtendBtn');
+    const greenTerminalBtn = document.getElementById('greenTerminalBtn');
+
+    let isSignal = true, isAuto = true;
+
+    function updateSignalState() {
+      modeBtn.disabled = !isSignal;
+      greenExtendBtn.disabled = !isSignal || !isAuto;
+      greenTerminalBtn.disabled = !isSignal; // ✅ Allow in both Auto and Manual
+
+      signalBtn.className = `btn w-100 ${isSignal ? 'btn-success' : 'btn-yellow'}`;
+      signalBtn.textContent = isSignal ? "Signal Mode ON" : "Blinker Mode ON";
+
+      modeBtn.className = `btn w-100 ${isAuto ? 'btn-success' : 'btn-danger'}`;
+      modeBtn.textContent = isAuto ? "Auto Mode ON" : "Manual Mode ON";
+    }
+
+    function updateAllVirtualPins() {
+      fetch(`${BASE_URL}V0=${isSignal ? 0 : 1}`);
+      fetch(`${BASE_URL}V1=${isAuto ? 0 : 1}`);
+      fetch(`${BASE_URL}V2=${greenExtendBtn.classList.contains('btn-green') ? 1 : 0}`);
+      fetch(`${BASE_URL}V3=${greenTerminalBtn.classList.contains('btn-green') ? 1 : 0}`);
+    }
+
+    signalBtn.addEventListener('click', () => {
+      isSignal = !isSignal;
+      fetch(`${BASE_URL}V0=${isSignal ? 0 : 1}`);
+
+      if (!isSignal) {
+        isAuto = true;
+        fetch(`${BASE_URL}V1=0`);
+        greenExtendBtn.classList.remove('btn-green');
+        greenExtendBtn.classList.add('btn-red');
+        greenTerminalBtn.classList.remove('btn-green');
+        greenTerminalBtn.classList.add('btn-red');
+        fetch(`${BASE_URL}V2=0`);
+        fetch(`${BASE_URL}V3=0`);
+      }
+
+      updateSignalState();
+      updateAllVirtualPins();
+    });
+
+    modeBtn.addEventListener('click', () => {
+      isAuto = !isAuto;
+      fetch(`${BASE_URL}V1=${isAuto ? 0 : 1}`);
+
+      greenExtendBtn.classList.remove('btn-green');
+      greenExtendBtn.classList.add('btn-red');
+      fetch(`${BASE_URL}V2=0`);
+
+      updateSignalState();
+      updateAllVirtualPins();
+    });
+
+    greenExtendBtn.addEventListener('click', () => {
+      greenExtendBtn.classList.add('btn-green');
+      greenExtendBtn.classList.remove('btn-red');
+      greenTerminalBtn.classList.remove('btn-green');
+      greenTerminalBtn.classList.add('btn-red');
+      fetch(`${BASE_URL}V2=1`);
+      fetch(`${BASE_URL}V3=0`);
+      updateAllVirtualPins();
+
+      setTimeout(() => {
+        greenExtendBtn.classList.remove('btn-green');
+        greenExtendBtn.classList.add('btn-red');
+        fetch(`${BASE_URL}V2=0`);
+        updateAllVirtualPins();
+      }, 1000);
+    });
+
+    greenTerminalBtn.addEventListener('click', () => {
+      greenTerminalBtn.classList.add('btn-green');
+      greenTerminalBtn.classList.remove('btn-red');
+      greenExtendBtn.classList.remove('btn-green');
+      greenExtendBtn.classList.add('btn-red');
+      fetch(`${BASE_URL}V3=1`);
+      fetch(`${BASE_URL}V2=0`);
+      updateAllVirtualPins();
+
+      setTimeout(() => {
+        greenTerminalBtn.classList.remove('btn-green');
+        greenTerminalBtn.classList.add('btn-red');
+        fetch(`${BASE_URL}V3=0`);
+        updateAllVirtualPins();
+      }, 1000);
+    });
+
+    updateSignalState(); // Initial setup
+  </script>
+</body>
+</html>
